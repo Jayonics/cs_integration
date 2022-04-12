@@ -1,0 +1,22 @@
+{
+  "name": "cs_integration",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csgo-buddy": "^1.0.7",
+    "fs": "^0.0.1-security",
+    "http": "^0.0.1-security",
+    "telnet-client": "^2.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^4.6.3"
+  }
+}

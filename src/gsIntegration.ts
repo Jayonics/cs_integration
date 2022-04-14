@@ -1,6 +1,9 @@
 import * as http from "http";
 import * as fs from "fs";
 import { Socket } from "net";
+import {parseGameState, parseGlobalEvent, parseMatchEvent} from "./netcon/parsers.mjs";
+import {GameState, GlobalEvent, LanguageIso, MatchEvent} from "./netcon/types.mjs";
+import {translate} from "./netcon/services.mjs";
 
 let port = process.env.PORT || 3000;
 let host: string = process.env.HOST || '0.0.0.0';
@@ -17,17 +20,17 @@ class Client {
         this.socket.addListener('error', () => {
             this.connectionOpen = false;
             console.error(
-                'Failed to connect to CSGO.',
+                'Failed to connect Netcon socket.',
                 `\nStart CSGO and make sure that you add launch option: -netconport ${this.port}`
             );
         });
     }
 
     connect(): Socket {
-        console.log('Connecting...');
+        console.log(`Connecting Netcon Socket to ${this.host}:${this.port}...`);
         return this.socket.connect(this.port, this.host, () => {
             this.connectionOpen = true;
-            console.log('Connected!');
+            console.info('Connected!');
         });
     }
 
@@ -47,8 +50,60 @@ class Client {
     }
 }
 
+let gameState = GameState.Initial;
 const netcon = new Client(2323, '10.66.11.1');
+netcon.addListener(async (message: string) => {
+    const globalEvent = parseGlobalEvent(message);
+    switch (globalEvent.event) {
+        case GlobalEvent.GameStateChanged:
+            gameState = parseGameState(globalEvent.value as string);
+            break;
+        case GlobalEvent.Message:
+            const [player, msg] = (globalEvent.value as string[]);
+            // const { text, language } = await translate(LanguageIso.English, msg);
 
+            // if (!skipLanguages[language]) {
+            //     const translationKey = "[msg]";
+            //     const translatedPlayerMessage = `${translationKey} ${player}: ${text}`;
+            //     console.log(translatedPlayerMessage);
+            //     netcon.send(
+            //         "developer 1",
+            //         "con_filter_enable 2",
+            //         `con_filter_text "${translationKey}"`,
+            //         `echo "${translatedPlayerMessage}"`,
+            //     );
+            // }
+            break;
+        default:
+            switch (gameState) {
+                case GameState.LoadingScreen:
+                    netcon.send(
+                        `echo "Loading..."`,
+                    )
+                    break;
+                case GameState.Match:
+                    const matchEvent = parseMatchEvent(message);
+                    switch (matchEvent.event) {
+                        case MatchEvent.PlayerConnected:
+                            // todo: Do something fun with this.
+                            netcon.send(
+                                `say Player connected: ${matchEvent.value}`
+                            )
+                            break;
+                        case MatchEvent.PlayerDisconnected:
+                            // todo: Do something fun with this.
+                            netcon.send(
+                                `say Player disconnected: ${matchEvent.value}`
+                            )
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+            }
+            break;
+    }
+});
 netcon.connect();
 
 // Create an array that hold the last 10 POST messages, pushing and popping
@@ -76,24 +131,31 @@ let server = http.createServer( function (req, res) {
 
                 // Only run functions if there is a previous post to compare to.
                 if (postDataArray.length > 1) {
-                    if (post.player.state.health < postDataArray[1].player.state.health) {
+                    if (post.player.state.health < postDataArray[1].player.state.health && post.player.state.health !== 0) {
                         let fighting = true;
                         let lastHealth = post.player.state.health;
-                        console.log('I lost ' + (postDataArray[1].player.state.health - post.player.state.health) + ' health');
-                        netcon.send(`say I lost  ${(postDataArray[1].player.state.health - post.player.state.health)} health`);
+                        netcon.send(`say I lost  -${(postDataArray[1].player.state.health - post.player.state.health)} health`);
                     }
 
                     if (post.player.state.flashed == true && postDataArray[1].player.state.flashed == false) {
-                        netcon.send(`say 📸 `);
+                        netcon.send(`say I'm ${post.player.state.flashed * 100}% flashed `);
+                    } else if (post.player.state.flashed > postDataArray[1].player.state.flashed) {
+                        netcon.send(`say I'm ${post.player.state.flashed * 100}% flashed `);
                     } else if (post.player.state.flashed == false && postDataArray[1].player.state.flashed == true) {
-                        netcon.send(`say 📷 `);
+                        netcon.send(`say I'm not blind anymore! `);
+                    }
+
+                    if (post.player.state.burning == true && postDataArray[1].player.state.burning == false) {
+                        netcon.send(`say I'm on fire! `);
+                    } else if (post.player.state.burning == false && postDataArray[1].player.state.burning == true) {
+                        netcon.send(`say I'm not on fire anymore! `);
                     }
 
                     if (post.player.match_stats.kills > postDataArray[1].player.match_stats.kills) {
-                        netcon.send(`say 🎯 `);
+                        netcon.send(`say K.I.A `);
                     }
                     if (post.player.match_stats.deaths > postDataArray[1].player.match_stats.deaths) {
-                        netcon.send(`say ☠️`);
+                        netcon.send(`say R.I.P `);
                     }
                 }
             }

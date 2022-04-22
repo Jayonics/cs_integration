@@ -93,7 +93,7 @@ netcon.addListener(function (message) { return __awaiter(void 0, void 0, void 0,
                     case 'string': return [3 /*break*/, 1];
                     case 'object': return [3 /*break*/, 10];
                 }
-                return [3 /*break*/, 28];
+                return [3 /*break*/, 27];
             case 1:
                 globalEvent = parseGlobalEvent(message);
                 _b = globalEvent.event;
@@ -137,12 +137,12 @@ netcon.addListener(function (message) { return __awaiter(void 0, void 0, void 0,
                 }
                 return [3 /*break*/, 8];
             case 8: return [3 /*break*/, 9];
-            case 9: return [3 /*break*/, 28];
+            case 9: return [3 /*break*/, 27];
             case 10:
                 _i = 0, message_1 = message;
                 _j.label = 11;
             case 11:
-                if (!(_i < message_1.length)) return [3 /*break*/, 28];
+                if (!(_i < message_1.length)) return [3 /*break*/, 27];
                 line = message_1[_i];
                 globalEvent_1 = parseGlobalEvent(line);
                 _e = globalEvent_1.event;
@@ -153,20 +153,20 @@ netcon.addListener(function (message) { return __awaiter(void 0, void 0, void 0,
                 return [3 /*break*/, 14];
             case 12:
                 gameState = parseGameState(globalEvent_1.value);
-                return [3 /*break*/, 27];
+                return [3 /*break*/, 26];
             case 13:
                 _f = globalEvent_1.value, player = _f[0], msg = _f[1];
-                return [3 /*break*/, 27];
+                return [3 /*break*/, 26];
             case 14:
                 _g = gameState;
                 switch (_g) {
                     case GameState.LoadingScreen: return [3 /*break*/, 15];
                     case GameState.Match: return [3 /*break*/, 16];
                 }
-                return [3 /*break*/, 26];
+                return [3 /*break*/, 25];
             case 15:
                 netcon.send("echo \"Loading...\"");
-                return [3 /*break*/, 26];
+                return [3 /*break*/, 25];
             case 16:
                 matchEvent = parseMatchEvent(line);
                 _h = matchEvent.event;
@@ -174,41 +174,38 @@ netcon.addListener(function (message) { return __awaiter(void 0, void 0, void 0,
                     case MatchEvent.PlayerConnected: return [3 /*break*/, 17];
                     case MatchEvent.PlayerDisconnected: return [3 /*break*/, 18];
                     case MatchEvent.DamageGiven: return [3 /*break*/, 19];
-                    case MatchEvent.DamageTaken: return [3 /*break*/, 23];
+                    case MatchEvent.DamageTaken: return [3 /*break*/, 22];
                 }
-                return [3 /*break*/, 24];
+                return [3 /*break*/, 23];
             case 17:
                 // todo: Do something fun with this.
                 netcon.send("say Player connected: ".concat(matchEvent.value));
-                return [3 /*break*/, 25];
+                return [3 /*break*/, 24];
             case 18:
                 // todo: Do something fun with this.
                 netcon.send("say Player disconnected: ".concat(matchEvent.value));
-                return [3 /*break*/, 25];
+                return [3 /*break*/, 24];
             case 19:
-                if (!(postDataArray[0].round.phase === "over")) return [3 /*break*/, 20];
-                netcon.send("echo Not sending DMG messages in chat.");
-                return [3 /*break*/, 22];
-            case 20:
+                if (!(postDataArray[0].round.phase === "live")) return [3 /*break*/, 21];
                 netcon.send("say_team DMG Dealt: ".concat(matchEvent.value[0], " - ").concat(matchEvent.value[1], " in ").concat(matchEvent.value[2]));
                 return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1100); })];
-            case 21:
+            case 20:
                 _j.sent();
-                _j.label = 22;
-            case 22: return [3 /*break*/, 25];
-            case 23: 
+                _j.label = 21;
+            case 21: return [3 /*break*/, 24];
+            case 22: 
             // netcon.send(
             //     `say_team DMG Taken: ${matchEvent.value[0]} - ${matchEvent.value[1]} in ${matchEvent.value[2]}`
             // )
             // await new Promise(resolve => setTimeout(resolve, 1000));
-            return [3 /*break*/, 25];
+            return [3 /*break*/, 24];
+            case 23: return [3 /*break*/, 24];
             case 24: return [3 /*break*/, 25];
             case 25: return [3 /*break*/, 26];
-            case 26: return [3 /*break*/, 27];
-            case 27:
+            case 26:
                 _i++;
                 return [3 /*break*/, 11];
-            case 28: return [2 /*return*/];
+            case 27: return [2 /*return*/];
         }
     });
 }); });
@@ -303,9 +300,16 @@ function fitNumberIn(number) {
     // return (((number) * newRange) / oldRange);
     return number;
 }
+function getRandomInt(max) {
+    return Math.floor(Math.random() * Math.floor(max));
+}
+function getRandomArrayEllement(array) {
+    return array[getRandomInt(array.length)];
+}
 // Create an array that hold the last 10 POST messages, pushing and popping
 // elements as necessary.
 var postDataArray = [];
+// @ts-ignore
 var server = http.createServer(function (req, res) {
     if (req.method === 'POST') {
         res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -315,7 +319,7 @@ var server = http.createServer(function (req, res) {
         });
         req.on('end', function () {
             return __awaiter(this, void 0, void 0, function () {
-                var post;
+                var post, randomHeadshotMessages, randomHeadshotMessage, randomKillMessages, randomKillMessage;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0:
@@ -401,14 +405,31 @@ var server = http.createServer(function (req, res) {
                             _a.label = 20;
                         case 20:
                             if (!(post.player.state.round_killhs > postDataArray[1].player.state.round_killhs)) return [3 /*break*/, 22];
-                            netcon.send("say Ez Hs ");
+                            randomHeadshotMessages = [
+                                "".concat(post.player.name, " is a headshot machine!"),
+                                "Boom Headshot!",
+                                "Ez pz, Lemon Headshot.",
+                                "Ez Hz",
+                                "Heads will roll!"
+                            ];
+                            randomHeadshotMessage = getRandomArrayEllement(randomHeadshotMessages);
+                            netcon.send("say ".concat(randomHeadshotMessage));
                             return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
                         case 21:
                             _a.sent();
                             return [3 /*break*/, 24];
                         case 22:
                             if (!(post.player.state.round_kills > postDataArray[1].player.state.round_kills)) return [3 /*break*/, 24];
-                            netcon.send("say Ez killz ");
+                            randomKillMessages = [
+                                "".concat(post.player.name, " is a kill machine!"),
+                                "Someone get the body bag!",
+                                "\u2620\uFE0F",
+                                "\uD83D\uDDD1\uFE0F",
+                                "Don't worry, it'll all be over soon...",
+                                "Better luck next round."
+                            ];
+                            randomKillMessage = getRandomArrayEllement(randomKillMessages);
+                            netcon.send("say ".concat(randomKillMessage));
                             return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
                         case 23:
                             _a.sent();

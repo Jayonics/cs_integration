@@ -132,9 +132,8 @@ netcon.addListener(async (message: string[]) => {
                                         )
                                         break;
                                     case MatchEvent.DamageGiven:
-                                        if (postDataArray[0].round.phase === "over") {
-                                            netcon.send(`echo Not sending DMG messages in chat.`)
-                                        } else {
+                                        // TODO: Handle dealing with an undefined phase.
+                                        if (postDataArray[0].round.phase === "live") {
                                             netcon.send(
                                                 `say_team DMG Dealt: ${matchEvent.value[0]} - ${matchEvent.value[1]} in ${matchEvent.value[2]}`
                                             )
@@ -229,10 +228,19 @@ function fitNumberIn(number: number) {
     return number;
 }
 
+function getRandomInt(max: number) {
+    return Math.floor(Math.random() * Math.floor(max));
+}
+
+function getRandomArrayEllement(array: any[]) {
+    return array[getRandomInt(array.length)];
+}
+
 // Create an array that hold the last 10 POST messages, pushing and popping
 // elements as necessary.
 let postDataArray = [];
 
+// @ts-ignore
 let server = http.createServer( function (req, res) {
     if (req.method === 'POST') {
         res.writeHead(200, {'Content-Type': 'text/html'});
@@ -294,15 +302,33 @@ let server = http.createServer( function (req, res) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
 
+
                     if (post.player.match_stats.deaths > postDataArray[1].player.match_stats.deaths) {
                         netcon.send(`say R.I.P `);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                     if (post.player.state.round_killhs > postDataArray[1].player.state.round_killhs) {
-                        netcon.send(`say Ez Hs `);
+                        let randomHeadshotMessages = [
+                            `${post.player.name} is a headshot machine!`,
+                            `Boom Headshot!`,
+                            `Ez pz, Lemon Headshot.`,
+                            `Ez Hz`,
+                            `Heads will roll!`
+                        ]
+                        let randomHeadshotMessage = getRandomArrayEllement(randomHeadshotMessages);
+                        netcon.send(`say ${randomHeadshotMessage}`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     } else if (post.player.state.round_kills > postDataArray[1].player.state.round_kills) {
-                        netcon.send(`say Ez killz `);
+                        let randomKillMessages = [
+                            `${post.player.name} is a kill machine!`,
+                            `Someone get the body bag!`,
+                            `☠️`,
+                            `🗑️`,
+                            `Don't worry, it'll all be over soon...`,
+                            `Better luck next round.`
+                            ]
+                        let randomKillMessage = getRandomArrayEllement(randomKillMessages);
+                        netcon.send(`say ${randomKillMessage}`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
 

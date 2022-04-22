@@ -218,6 +218,10 @@ async function rainbowCrosshair(rate: number) {
 }
 
 // A function that fits a number within the 0-255 inside a given range.
+// TODO: Make this useful in some way.
+// FIXME:
+// - Figure out why POST data for 0-255 ranges (Flashed, smoked, burning) returns either 255, 1, or 0.
+// but not a value in between as you would expect proportional to the scale.
 function fitNumberIn(number: number) {
     // let oldRange = (255)
     // let newRange = (100)
@@ -294,7 +298,7 @@ let server = http.createServer( function (req, res) {
                         netcon.send(`say R.I.P `);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
-                    if (post.player.state.round_killhs > postDataArray[1].player.state.round_kills) {
+                    if (post.player.state.round_killhs > postDataArray[1].player.state.round_killhs) {
                         netcon.send(`say Ez Hs `);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     } else if (post.player.state.round_kills > postDataArray[1].player.state.round_kills) {

@@ -4,63 +4,32 @@ import { EventWrapper, GameState, GlobalEvent, MatchEvent } from './types.mjs';
 export function parseMatchEvent(message) {
     var event = MatchEvent.Unknown;
     var args = null;
-    var messageArray = message.split(/\r?\n/);
-    var DamageGivenBuffer = [];
-    var DamageTakenBuffer = [];
-    var PlayerConnectedBuffer = [];
-    messageArray.forEach(function (message) {
-        switch (event) {
-            case MatchEvent.DamageGiven:
-                var DamageGivenObj = void 0;
-                if (message.match(/^-+$/)) {
-                    break;
-                }
-                else {
-                    if (message.match(/^Damage Given to /)) {
-                        DamageGivenObj = message.replace(/^Damage Given to /, '');
-                        DamageGivenObj = DamageGivenObj.split(//);
-                        DamageGivenObj = DamageGivenObj.match(/(?<=").*(?=")/))[0];
-                        DamageGivenObj[0] = DamageGivenObj[0].split(/^ - (\d+)(?= )/);
-                        DamageGivenObj[1] = DamageGivenObj[1].split(/^ (\d+)(?= hit)/);
-                        DamageGivenBuffer.push(message.replace(/^Damage Given to /, '').split('in'));
-                    }
-                    else {
-                        event = MatchEvent.Unknown;
-                        break;
-                    }
-                }
-                break;
-            case MatchEvent.DamageTaken:
-                if (message.match(/^-+$/)) {
-                    break;
-                }
-                else {
-                    if (message.match(/^Damage Taken from /)) {
-                        DamageTakenBuffer.push(message);
-                    }
-                    else {
-                        event = MatchEvent.Unknown;
-                        break;
-                    }
-                }
-                break;
-            case MatchEvent.Unknown:
-                if (message.trimEnd().endsWith('Damage Given')) {
-                    event = MatchEvent.DamageGiven;
-                    var DamageGivenBuffer_1 = [];
-                }
-                else if (message.trimEnd().endsWith('Damage Taken')) {
-                    event = MatchEvent.DamageTaken;
-                    var DamageTakenBuffer_1 = [];
-                }
-                else if (message.trimEnd().endsWith(MatchEvent.PlayerConnected)) {
-                    event = MatchEvent.PlayerConnected;
-                    PlayerConnectedBuffer.push(message.match(/^(.*)(?= connected\.)/)[1]);
-                }
-                break;
-        }
-    });
-    return [];
+    if (message.endsWith(MatchEvent.PlayerConnected)) {
+        event = MatchEvent.PlayerConnected;
+        args = message
+            .substr(0, message.length - MatchEvent.PlayerConnected.length)
+            .trim();
+    }
+    else if (message.startsWith(MatchEvent.DamageGiven)) {
+        event = MatchEvent.DamageGiven;
+        var _a = message
+            .substr(MatchEvent.DamageGiven.length)
+            .trim()
+            .split(' - '), playerName = _a[0], hit = _a[1];
+        var _b = hit.split('in').map(function (x) { return x.trim(); }), damage = _b[0], numberOfHits = _b[1];
+        args = [playerName, damage, numberOfHits];
+    }
+    else if (message.startsWith(MatchEvent.DamageTaken)) {
+        event = MatchEvent.DamageTaken;
+        var _c = message
+            .substr(MatchEvent.DamageTaken.length)
+            .trim()
+            .split(' - '), playerName = _c[0], hit = _c[1];
+        var _d = hit.split('in').map(function (x) { return x.trim(); }), damage = _d[0], numberOfHits = _d[1];
+        args = [playerName, damage, numberOfHits];
+    }
+    var result = new EventWrapper(event, args);
+    return result;
 }
 export function parseGlobalEvent(message) {
     var event = GlobalEvent.Unknown;

@@ -3,59 +3,33 @@
 import {EventValue, EventWrapper, GameState, GlobalEvent, MatchEvent} from './types.mjs';
 
 export function parseMatchEvent(message: string): EventWrapper<MatchEvent> {
-    let event: MatchEvent = MatchEvent.Unknown;
+    let event = MatchEvent.Unknown;
     let args: EventValue = null;
-    let messageArray = message.split(/\r?\n/);
-    let DamageGivenBuffer = [];
-    let DamageTakenBuffer = [];
-    let PlayerConnectedBuffer = [];
-    messageArray.forEach(message => {
-        switch (event) {
-            case MatchEvent.DamageGiven:
-                let DamageGivenObj;
-                if (message.match(/^-+$/)) {
-                    break;
-                } else {
-                    if (message.match(/^Damage Given to /)) {
-                        DamageGivenObj = message.replace(/^Damage Given to /, '')
-                        DamageGivenObj = DamageGivenObj.split(//);
-                        DamageGivenObj = DamageGivenObj.match(/(?<=").*(?=")/))[0];
-                        DamageGivenObj[0] = DamageGivenObj[0].split(/^ - (\d+)(?= )/);
-                        DamageGivenObj[1] = DamageGivenObj[1].split(/^ (\d+)(?= hit)/);
-                        DamageGivenBuffer.push(message.replace(/^Damage Given to /, '').split('in'));
-                    } else {
-                        event = MatchEvent.Unknown;
-                        break;
-                    }
-                }
-                break;
-            case MatchEvent.DamageTaken:
-                if (message.match(/^-+$/)) {
-                    break;
-                } else {
-                    if (message.match(/^Damage Taken from /)) {
-                        DamageTakenBuffer.push(message);
-                    } else {
-                        event = MatchEvent.Unknown;
-                        break;
-                    }
-                }
-                break;
-            case MatchEvent.Unknown:
-                if (message.trimEnd().endsWith('Damage Given')){
-                    event = MatchEvent.DamageGiven;
-                    let DamageGivenBuffer = [];
-                } else if (message.trimEnd().endsWith('Damage Taken')){
-                    event = MatchEvent.DamageTaken;
-                    let DamageTakenBuffer = [];
-                } else if (message.trimEnd().endsWith(MatchEvent.PlayerConnected)) {
-                    event = MatchEvent.PlayerConnected;
-                    PlayerConnectedBuffer.push(message.match(/^(.*)(?= connected\.)/)[1]);
-                }
-                break;
-        }
-    });
-    return []
+    if (message.endsWith(MatchEvent.PlayerConnected)) {
+        event = MatchEvent.PlayerConnected;
+        args = message
+            .substr(0, message.length - MatchEvent.PlayerConnected.length)
+            .trim();
+    } else if (message.startsWith(MatchEvent.DamageGiven)) {
+        event = MatchEvent.DamageGiven;
+        const [playerName, hit] = message
+            .substr(MatchEvent.DamageGiven.length)
+            .trim()
+            .split(' - ');
+        const [damage, numberOfHits] = hit.split('in').map((x) => x.trim());
+        args = [playerName, damage, numberOfHits];
+    } else if (message.startsWith(MatchEvent.DamageTaken)) {
+        event = MatchEvent.DamageTaken;
+        const [playerName, hit] = message
+            .substr(MatchEvent.DamageTaken.length)
+            .trim()
+            .split(' - ');
+        const [damage, numberOfHits] = hit.split('in').map((x) => x.trim());
+        args = [playerName, damage, numberOfHits];
+    }
+
+    const result = new EventWrapper<MatchEvent>(event, args);
+    return result;
 }
 
 export function parseGlobalEvent(message: string): EventWrapper<GlobalEvent> {

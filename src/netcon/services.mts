@@ -5,6 +5,7 @@ export class Client {
     socket: Socket;
     connectionOpen: boolean;
 
+
     constructor(
         private port: number,
         private host: string,) {
@@ -27,7 +28,7 @@ export class Client {
         });
     }
 
-    send(...messages: string[]): void {
+    send(verbose: boolean | null, ...messages: string[]): void {
         for(const message of messages) {
             this.socket.write(`${message}\r\n`);
         }

@@ -38,13 +38,16 @@ import * as http from "http";
 import { Socket } from "net";
 import { parseGameState, parseGlobalEvent, parseMatchEvent } from "./netcon/parsers.mjs";
 import { GameState, GlobalEvent, MatchEvent } from "./netcon/types.mjs";
+import { Mutex } from "async-mutex";
 var port = process.env.PORT || 3000;
 var host = process.env.HOST || '0.0.0.0';
+var mutex = new Mutex();
 var Client = /** @class */ (function () {
     function Client(port, host) {
         var _this = this;
         this.port = port;
         this.host = host;
+        this.cmdQueue = [];
         this.connectionOpen = false;
         this.socket = new Socket();
         this.socket.addListener('error', function () {
@@ -72,66 +75,230 @@ var Client = /** @class */ (function () {
     };
     Client.prototype.addListener = function (handler) {
         this.socket.addListener('data', function (data) {
-            if (data && handler) {
-                var message = data.toString('utf8');
-                handler(message);
-            }
+            var message = data.toString('utf8').trimEnd().split(/\r?\n/);
+            handler(message);
         });
     };
     return Client;
 }());
-var gameState = GameState.Initial;
+var gameState = GameState.Match;
 var netcon = new Client(2323, '10.66.11.1');
 netcon.addListener(function (message) { return __awaiter(void 0, void 0, void 0, function () {
-    var globalEvent, _a, player, msg, matchEvent;
-    return __generator(this, function (_b) {
-        globalEvent = parseGlobalEvent(message);
-        switch (globalEvent.event) {
-            case GlobalEvent.GameStateChanged:
+    var _a, globalEvent, _b, _c, player, msg, _d, matchEvent, _i, message_1, line, globalEvent_1, _e, _f, player, msg, _g, matchEvent, _h;
+    return __generator(this, function (_j) {
+        switch (_j.label) {
+            case 0:
+                _a = typeof message;
+                switch (_a) {
+                    case 'string': return [3 /*break*/, 1];
+                    case 'object': return [3 /*break*/, 10];
+                }
+                return [3 /*break*/, 28];
+            case 1:
+                globalEvent = parseGlobalEvent(message);
+                _b = globalEvent.event;
+                switch (_b) {
+                    case GlobalEvent.GameStateChanged: return [3 /*break*/, 2];
+                    case GlobalEvent.Message: return [3 /*break*/, 3];
+                }
+                return [3 /*break*/, 4];
+            case 2:
                 gameState = parseGameState(globalEvent.value);
-                break;
-            case GlobalEvent.Message:
-                _a = globalEvent.value, player = _a[0], msg = _a[1];
-                // const { text, language } = await translate(LanguageIso.English, msg);
-                // if (!skipLanguages[language]) {
-                //     const translationKey = "[msg]";
-                //     const translatedPlayerMessage = `${translationKey} ${player}: ${text}`;
-                //     console.log(translatedPlayerMessage);
-                //     netcon.send(
-                //         "developer 1",
-                //         "con_filter_enable 2",
-                //         `con_filter_text "${translationKey}"`,
-                //         `echo "${translatedPlayerMessage}"`,
-                //     );
-                // }
-                break;
-            default:
-                switch (gameState) {
-                    case GameState.LoadingScreen:
-                        netcon.send("echo \"Loading...\"");
+                return [3 /*break*/, 9];
+            case 3:
+                _c = globalEvent.value, player = _c[0], msg = _c[1];
+                return [3 /*break*/, 9];
+            case 4:
+                _d = gameState;
+                switch (_d) {
+                    case GameState.LoadingScreen: return [3 /*break*/, 5];
+                    case GameState.Match: return [3 /*break*/, 7];
+                }
+                return [3 /*break*/, 8];
+            case 5:
+                netcon.send("echo \"Loading...\"");
+                return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+            case 6:
+                _j.sent();
+                return [3 /*break*/, 8];
+            case 7:
+                matchEvent = parseMatchEvent(message);
+                switch (matchEvent.event) {
+                    case MatchEvent.PlayerConnected:
+                        // todo: Do something fun with this.
+                        netcon.send("say Player connected: ".concat(matchEvent.value));
                         break;
-                    case GameState.Match:
-                        matchEvent = parseMatchEvent(message);
-                        switch (matchEvent.event) {
-                            case MatchEvent.PlayerConnected:
-                                // todo: Do something fun with this.
-                                netcon.send("say Player connected: ".concat(matchEvent.value));
-                                break;
-                            case MatchEvent.PlayerDisconnected:
-                                // todo: Do something fun with this.
-                                netcon.send("say Player disconnected: ".concat(matchEvent.value));
-                                break;
-                            default:
-                                break;
-                        }
+                    case MatchEvent.PlayerDisconnected:
+                        // todo: Do something fun with this.
+                        netcon.send("say Player disconnected: ".concat(matchEvent.value));
+                        break;
+                    default:
                         break;
                 }
-                break;
+                return [3 /*break*/, 8];
+            case 8: return [3 /*break*/, 9];
+            case 9: return [3 /*break*/, 28];
+            case 10:
+                _i = 0, message_1 = message;
+                _j.label = 11;
+            case 11:
+                if (!(_i < message_1.length)) return [3 /*break*/, 28];
+                line = message_1[_i];
+                globalEvent_1 = parseGlobalEvent(line);
+                _e = globalEvent_1.event;
+                switch (_e) {
+                    case GlobalEvent.GameStateChanged: return [3 /*break*/, 12];
+                    case GlobalEvent.Message: return [3 /*break*/, 13];
+                }
+                return [3 /*break*/, 14];
+            case 12:
+                gameState = parseGameState(globalEvent_1.value);
+                return [3 /*break*/, 27];
+            case 13:
+                _f = globalEvent_1.value, player = _f[0], msg = _f[1];
+                return [3 /*break*/, 27];
+            case 14:
+                _g = gameState;
+                switch (_g) {
+                    case GameState.LoadingScreen: return [3 /*break*/, 15];
+                    case GameState.Match: return [3 /*break*/, 16];
+                }
+                return [3 /*break*/, 26];
+            case 15:
+                netcon.send("echo \"Loading...\"");
+                return [3 /*break*/, 26];
+            case 16:
+                matchEvent = parseMatchEvent(line);
+                _h = matchEvent.event;
+                switch (_h) {
+                    case MatchEvent.PlayerConnected: return [3 /*break*/, 17];
+                    case MatchEvent.PlayerDisconnected: return [3 /*break*/, 18];
+                    case MatchEvent.DamageGiven: return [3 /*break*/, 19];
+                    case MatchEvent.DamageTaken: return [3 /*break*/, 23];
+                }
+                return [3 /*break*/, 24];
+            case 17:
+                // todo: Do something fun with this.
+                netcon.send("say Player connected: ".concat(matchEvent.value));
+                return [3 /*break*/, 25];
+            case 18:
+                // todo: Do something fun with this.
+                netcon.send("say Player disconnected: ".concat(matchEvent.value));
+                return [3 /*break*/, 25];
+            case 19:
+                if (!(postDataArray[0].round.phase === "over")) return [3 /*break*/, 20];
+                netcon.send("echo Not sending DMG messages in chat.");
+                return [3 /*break*/, 22];
+            case 20:
+                netcon.send("say_team DMG Dealt: ".concat(matchEvent.value[0], " - ").concat(matchEvent.value[1], " in ").concat(matchEvent.value[2]));
+                return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1100); })];
+            case 21:
+                _j.sent();
+                _j.label = 22;
+            case 22: return [3 /*break*/, 25];
+            case 23: 
+            // netcon.send(
+            //     `say_team DMG Taken: ${matchEvent.value[0]} - ${matchEvent.value[1]} in ${matchEvent.value[2]}`
+            // )
+            // await new Promise(resolve => setTimeout(resolve, 1000));
+            return [3 /*break*/, 25];
+            case 24: return [3 /*break*/, 25];
+            case 25: return [3 /*break*/, 26];
+            case 26: return [3 /*break*/, 27];
+            case 27:
+                _i++;
+                return [3 /*break*/, 11];
+            case 28: return [2 /*return*/];
         }
-        return [2 /*return*/];
     });
 }); });
-netcon.connect();
+// A rainbow crosshair function that cycles through the rainbow (R,G,B format) at a given rate.
+function rainbowCrosshair(rate) {
+    return __awaiter(this, void 0, void 0, function () {
+        var colors, lowRangeColors, i;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    colors = [
+                        [255, 0, 0],
+                        [255, 64, 0],
+                        [255, 128, 0],
+                        [255, 192, 0],
+                        [255, 255, 0],
+                        [192, 255, 0],
+                        [128, 255, 0],
+                        [64, 255, 0],
+                        [0, 255, 0],
+                        [0, 255, 64],
+                        [0, 255, 128],
+                        [0, 255, 192],
+                        [0, 255, 255],
+                        [0, 192, 255],
+                        [0, 128, 255],
+                        [0, 64, 255],
+                        [0, 0, 255],
+                        [64, 0, 255],
+                        [128, 0, 255],
+                        [192, 0, 255],
+                        [255, 0, 255],
+                        [255, 0, 192],
+                        [255, 0, 128],
+                        [255, 0, 64],
+                    ];
+                    lowRangeColors = [
+                        [255, 0, 0],
+                        [255, 128, 0],
+                        [255, 255, 0],
+                        [128, 255, 0],
+                        [0, 255, 0],
+                        [0, 255, 128],
+                        [0, 255, 255],
+                        [0, 128, 255],
+                        [0, 0, 255],
+                        [128, 0, 255],
+                        [255, 0, 255],
+                        [255, 0, 128]
+                    ];
+                    _a.label = 1;
+                case 1:
+                    i = 0;
+                    _a.label = 2;
+                case 2:
+                    if (!(i < lowRangeColors.length)) return [3 /*break*/, 7];
+                    // Apply the colours individually to the crosshair with the format:
+                    // `cl_crosshaircolor_r cl_crosshaircolor_g cl_crosshaircolor_b`
+                    // And wait for max console send rate between each colour change.
+                    netcon.send("cl_crosshaircolor_r ".concat(lowRangeColors[i][0]));
+                    return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, rate); })];
+                case 3:
+                    _a.sent();
+                    netcon.send("cl_crosshaircolor_g ".concat(lowRangeColors[i][1]));
+                    return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, rate); })];
+                case 4:
+                    _a.sent();
+                    netcon.send("cl_crosshaircolor_b ".concat(lowRangeColors[i][2]));
+                    return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, rate); })];
+                case 5:
+                    _a.sent();
+                    _a.label = 6;
+                case 6:
+                    i++;
+                    return [3 /*break*/, 2];
+                case 7:
+                    if (netcon.connectionOpen === true) return [3 /*break*/, 1];
+                    _a.label = 8;
+                case 8: return [2 /*return*/];
+            }
+        });
+    });
+}
+// A function that fits a number within the 0-255 inside a given range.
+function fitNumberIn(number) {
+    // let oldRange = (255)
+    // let newRange = (100)
+    // return (((number) * newRange) / oldRange);
+    return number;
+}
 // Create an array that hold the last 10 POST messages, pushing and popping
 // elements as necessary.
 var postDataArray = [];
@@ -143,47 +310,132 @@ var server = http.createServer(function (req, res) {
             body_1 += data;
         });
         req.on('end', function () {
-            var post = JSON.parse(body_1);
-            if (post.player.name === 'Jayonics' && post.player.activity === 'playing') {
-                // Keep adding post data to the array until it's full.
-                if (postDataArray.length <= 10) {
-                    postDataArray.unshift(post);
-                }
-                else {
-                    postDataArray.pop();
-                    postDataArray.unshift(post);
-                }
-                // Only run functions if there is a previous post to compare to.
-                if (postDataArray.length > 1) {
-                    if (post.player.state.health < postDataArray[1].player.state.health && post.player.state.health !== 0) {
-                        var fighting = true;
-                        var lastHealth = post.player.state.health;
-                        netcon.send("say I lost  -".concat((postDataArray[1].player.state.health - post.player.state.health), " health"));
+            return __awaiter(this, void 0, void 0, function () {
+                var post;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            post = JSON.parse(body_1);
+                            if (!(post.player.activity === 'playing' && post.player.name === "Jayonics")) return [3 /*break*/, 30];
+                            // Keep adding post data to the array until it's full.
+                            if (postDataArray.length <= 10) {
+                                postDataArray.unshift(post);
+                            }
+                            else {
+                                postDataArray.pop();
+                                postDataArray.unshift(post);
+                            }
+                            if (!(postDataArray.length > 1)) return [3 /*break*/, 30];
+                            if (!(post.player.state.smoked == true && postDataArray[1].player.state.smoked == false)) return [3 /*break*/, 2];
+                            netcon.send("say_team ".concat(post.player.name, " ").concat(fitNumberIn(post.player.state.smoked), "% smoked "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 1:
+                            _a.sent();
+                            return [3 /*break*/, 6];
+                        case 2:
+                            if (!(post.player.state.smoked > postDataArray[1].player.state.smoked)) return [3 /*break*/, 4];
+                            netcon.send("say_team ".concat(post.player.name, " ").concat(fitNumberIn(post.player.state.smoked), "% smoked "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 3:
+                            _a.sent();
+                            return [3 /*break*/, 6];
+                        case 4:
+                            if (!(post.player.state.smoked == false && postDataArray[1].player.state.smoked == true)) return [3 /*break*/, 6];
+                            netcon.send("say_team ".concat(post.player.name, " not smoked anymore! "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 5:
+                            _a.sent();
+                            _a.label = 6;
+                        case 6:
+                            if (!(post.player.state.flashed == true && postDataArray[1].player.state.flashed == false)) return [3 /*break*/, 8];
+                            netcon.send("say_team ".concat(post.player.name, " ").concat(fitNumberIn(post.player.state.flashed), "% flashed "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 7:
+                            _a.sent();
+                            return [3 /*break*/, 12];
+                        case 8:
+                            if (!(post.player.state.flashed > postDataArray[1].player.state.flashed)) return [3 /*break*/, 10];
+                            netcon.send("say_team ".concat(post.player.name, " ").concat(fitNumberIn(post.player.state.flashed), "% flashed "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 9:
+                            _a.sent();
+                            return [3 /*break*/, 12];
+                        case 10:
+                            if (!(post.player.state.flashed == false && postDataArray[1].player.state.flashed == true)) return [3 /*break*/, 12];
+                            netcon.send("say_team ".concat(post.player.name, " not blind anymore! "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 11:
+                            _a.sent();
+                            _a.label = 12;
+                        case 12:
+                            if (!(post.player.state.burning == true && postDataArray[1].player.state.burning == false)) return [3 /*break*/, 14];
+                            netcon.send("say_team ".concat(post.player.name, " ").concat(fitNumberIn(post.player.state.burning), "% burning "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 13:
+                            _a.sent();
+                            return [3 /*break*/, 18];
+                        case 14:
+                            if (!(post.player.state.burning > postDataArray[1].player.state.burning)) return [3 /*break*/, 16];
+                            netcon.send("say_team ".concat(post.player.name, " ").concat(fitNumberIn(post.player.state.burning), "% burning "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 15:
+                            _a.sent();
+                            return [3 /*break*/, 18];
+                        case 16:
+                            if (!(post.player.state.burning == false && postDataArray[1].player.state.burning == true)) return [3 /*break*/, 18];
+                            netcon.send("say_team ".concat(post.player.name, " not burning anymore! "));
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 17:
+                            _a.sent();
+                            _a.label = 18;
+                        case 18:
+                            if (!(post.player.match_stats.deaths > postDataArray[1].player.match_stats.deaths)) return [3 /*break*/, 20];
+                            netcon.send("say R.I.P ");
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 19:
+                            _a.sent();
+                            _a.label = 20;
+                        case 20:
+                            if (!(post.player.state.round_killhs > postDataArray[1].player.state.round_kills)) return [3 /*break*/, 22];
+                            netcon.send("say Ez Hs ");
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 21:
+                            _a.sent();
+                            return [3 /*break*/, 24];
+                        case 22:
+                            if (!(post.player.state.round_kills > postDataArray[1].player.state.round_kills)) return [3 /*break*/, 24];
+                            netcon.send("say Ez killz ");
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 23:
+                            _a.sent();
+                            _a.label = 24;
+                        case 24:
+                            if (!(post.map.phase == 'live' && postDataArray[1].map.phase == 'warmup')) return [3 /*break*/, 26];
+                            netcon.send("say Gl Hf");
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 25:
+                            _a.sent();
+                            return [3 /*break*/, 30];
+                        case 26:
+                            if (!(post.map.phase == 'intermission' && postDataArray[1].map.phase == 'live')) return [3 /*break*/, 28];
+                            netcon.send("say Good half.");
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 27:
+                            _a.sent();
+                            return [3 /*break*/, 30];
+                        case 28:
+                            if (!(post.map.phase == 'gameover' && postDataArray[1].map.phase == 'live')) return [3 /*break*/, 30];
+                            netcon.send("say Game over!");
+                            return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, 1000); })];
+                        case 29:
+                            _a.sent();
+                            _a.label = 30;
+                        case 30:
+                            res.end("Received POST request: " + post);
+                            return [2 /*return*/];
                     }
-                    if (post.player.state.flashed == true && postDataArray[1].player.state.flashed == false) {
-                        netcon.send("say I'm ".concat(post.player.state.flashed * 100, "% flashed "));
-                    }
-                    else if (post.player.state.flashed > postDataArray[1].player.state.flashed) {
-                        netcon.send("say I'm ".concat(post.player.state.flashed * 100, "% flashed "));
-                    }
-                    else if (post.player.state.flashed == false && postDataArray[1].player.state.flashed == true) {
-                        netcon.send("say I'm not blind anymore! ");
-                    }
-                    if (post.player.state.burning == true && postDataArray[1].player.state.burning == false) {
-                        netcon.send("say I'm on fire! ");
-                    }
-                    else if (post.player.state.burning == false && postDataArray[1].player.state.burning == true) {
-                        netcon.send("say I'm not on fire anymore! ");
-                    }
-                    if (post.player.match_stats.kills > postDataArray[1].player.match_stats.kills) {
-                        netcon.send("say K.I.A ");
-                    }
-                    if (post.player.match_stats.deaths > postDataArray[1].player.match_stats.deaths) {
-                        netcon.send("say R.I.P ");
-                    }
-                }
-            }
-            res.end("Received POST request: " + post);
+                });
+            });
         });
     }
     else {
@@ -193,6 +445,10 @@ var server = http.createServer(function (req, res) {
         res.end(html);
     }
 });
-server.listen(port, host);
+netcon.connect();
+server.listen(port, '0.0.0.0');
 console.log('Server running at http://' + host + ':' + port + '/');
+// do {
+//     rainbowCrosshair(100);
+// } while (netcon.connectionOpen === true);
 //# sourceMappingURL=gsIntegration.js.map

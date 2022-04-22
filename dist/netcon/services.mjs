@@ -56,10 +56,10 @@ var Client = /** @class */ (function () {
             console.log('Connected!');
         });
     };
-    Client.prototype.send = function () {
+    Client.prototype.send = function (verbose) {
         var messages = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            messages[_i] = arguments[_i];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            messages[_i - 1] = arguments[_i];
         }
         for (var _a = 0, messages_1 = messages; _a < messages_1.length; _a++) {
             var message = messages_1[_a];

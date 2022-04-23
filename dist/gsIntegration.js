@@ -212,79 +212,63 @@ netcon.addListener(function (message) { return __awaiter(void 0, void 0, void 0,
 // A rainbow crosshair function that cycles through the rainbow (R,G,B format) at a given rate.
 function rainbowCrosshair(rate) {
     return __awaiter(this, void 0, void 0, function () {
-        var colors, lowRangeColors, i;
+        var colors, i;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     colors = [
+                        // Peak Red with green fade in.
                         [255, 0, 0],
                         [255, 64, 0],
                         [255, 128, 0],
                         [255, 192, 0],
                         [255, 255, 0],
+                        // Peak green with red fade out.
                         [192, 255, 0],
                         [128, 255, 0],
                         [64, 255, 0],
                         [0, 255, 0],
+                        // Peak green with blue fade in.
                         [0, 255, 64],
                         [0, 255, 128],
                         [0, 255, 192],
                         [0, 255, 255],
+                        // Peak blue with green fade out.
                         [0, 192, 255],
                         [0, 128, 255],
                         [0, 64, 255],
                         [0, 0, 255],
+                        // Peak blue with red fade in.
                         [64, 0, 255],
                         [128, 0, 255],
                         [192, 0, 255],
                         [255, 0, 255],
+                        // Peak red with blue fade out.
                         [255, 0, 192],
                         [255, 0, 128],
                         [255, 0, 64],
-                    ];
-                    lowRangeColors = [
-                        [255, 0, 0],
-                        [255, 128, 0],
-                        [255, 255, 0],
-                        [128, 255, 0],
-                        [0, 255, 0],
-                        [0, 255, 128],
-                        [0, 255, 255],
-                        [0, 128, 255],
-                        [0, 0, 255],
-                        [128, 0, 255],
-                        [255, 0, 255],
-                        [255, 0, 128]
                     ];
                     _a.label = 1;
                 case 1:
                     i = 0;
                     _a.label = 2;
                 case 2:
-                    if (!(i < lowRangeColors.length)) return [3 /*break*/, 7];
+                    if (!(i < colors.length)) return [3 /*break*/, 5];
                     // Apply the colours individually to the crosshair with the format:
-                    // `cl_crosshaircolor_r cl_crosshaircolor_g cl_crosshaircolor_b`
-                    // And wait for max console send rate between each colour change.
-                    netcon.send("cl_crosshaircolor_r ".concat(lowRangeColors[i][0]));
+                    // `cl_crosshaircolor_r; cl_crosshaircolor_g; cl_crosshaircolor_b`
+                    // And wait for the max console send rate between each colour change.
+                    netcon.send("cl_crosshaircolor_r ".concat(colors[i][0], "; cl_crosshaircolor_g ").concat(colors[i][1], "; cl_crosshaircolor_b ").concat(colors[i][2]));
                     return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, rate); })];
                 case 3:
                     _a.sent();
-                    netcon.send("cl_crosshaircolor_g ".concat(lowRangeColors[i][1]));
-                    return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, rate); })];
+                    _a.label = 4;
                 case 4:
-                    _a.sent();
-                    netcon.send("cl_crosshaircolor_b ".concat(lowRangeColors[i][2]));
-                    return [4 /*yield*/, new Promise(function (resolve) { return setTimeout(resolve, rate); })];
-                case 5:
-                    _a.sent();
-                    _a.label = 6;
-                case 6:
                     i++;
                     return [3 /*break*/, 2];
-                case 7:
+                case 5:
                     if (netcon.connectionOpen === true) return [3 /*break*/, 1];
-                    _a.label = 8;
-                case 8: return [2 /*return*/];
+                    _a.label = 6;
+                case 6: return [2 /*return*/];
             }
         });
     });
@@ -473,7 +457,7 @@ var server = http.createServer(function (req, res) {
 netcon.connect();
 server.listen(port, '0.0.0.0');
 console.log('Server running at http://' + host + ':' + port + '/');
-// do {
-//     rainbowCrosshair(100);
-// } while (netcon.connectionOpen === true);
+do {
+    rainbowCrosshair(50);
+} while (netcon.connectionOpen === true);
 //# sourceMappingURL=gsIntegration.js.map

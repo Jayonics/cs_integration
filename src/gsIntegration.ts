@@ -161,56 +161,43 @@ netcon.addListener(async (message: string[]) => {
 async function rainbowCrosshair(rate: number) {
     // The colours array should have 27 intervals (3^3), evenly spaced.
     const colors = [
+        // Peak Red with green fade in.
         [255, 0, 0],
         [255, 64, 0],
         [255, 128, 0],
         [255, 192, 0],
         [255, 255, 0],
+        // Peak green with red fade out.
         [192, 255, 0],
         [128, 255, 0],
         [64, 255, 0],
         [0, 255, 0],
+        // Peak green with blue fade in.
         [0, 255, 64],
         [0, 255, 128],
         [0, 255, 192],
         [0, 255, 255],
+        // Peak blue with green fade out.
         [0, 192, 255],
         [0, 128, 255],
         [0, 64, 255],
         [0, 0, 255],
+        // Peak blue with red fade in.
         [64, 0, 255],
         [128, 0, 255],
         [192, 0, 255],
         [255, 0, 255],
+        // Peak red with blue fade out.
         [255, 0, 192],
         [255, 0, 128],
         [255, 0, 64],
     ];
-    const lowRangeColors = [
-        [255, 0, 0],
-        [255, 128, 0],
-        [255, 255, 0],
-        [128, 255, 0],
-        [0, 255, 0],
-        [0, 255, 128],
-        [0, 255, 255],
-        [0, 128, 255],
-        [0, 0, 255],
-        [128, 0, 255],
-        [255, 0, 255],
-        [255, 0, 128]
-    ]
-    // The current colour index
     do {
-        for(let i = 0; i < lowRangeColors.length; i++) {
+        for(let i = 0; i < colors.length; i++) {
             // Apply the colours individually to the crosshair with the format:
-            // `cl_crosshaircolor_r cl_crosshaircolor_g cl_crosshaircolor_b`
-            // And wait for max console send rate between each colour change.
-            netcon.send(`cl_crosshaircolor_r ${lowRangeColors[i][0]}`);
-            await new Promise(resolve => setTimeout(resolve, rate));
-            netcon.send(`cl_crosshaircolor_g ${lowRangeColors[i][1]}`);
-            await new Promise(resolve => setTimeout(resolve, rate));
-            netcon.send(`cl_crosshaircolor_b ${lowRangeColors[i][2]}`);
+            // `cl_crosshaircolor_r; cl_crosshaircolor_g; cl_crosshaircolor_b`
+            // And wait for the max console send rate between each colour change.
+            netcon.send(`cl_crosshaircolor_r ${colors[i][0]}; cl_crosshaircolor_g ${colors[i][1]}; cl_crosshaircolor_b ${colors[i][2]}`);
             await new Promise(resolve => setTimeout(resolve, rate));
         }
     } while(netcon.connectionOpen === true);
@@ -364,6 +351,6 @@ netcon.connect()
 server.listen(port, '0.0.0.0');
 console.log('Server running at http://' + host + ':' + port + '/');
 
-// do {
-//     rainbowCrosshair(100);
-// } while (netcon.connectionOpen === true);
+do {
+    rainbowCrosshair(50);
+} while (netcon.connectionOpen === true);

@@ -1,5 +1,13 @@
 A NodeJS application that combines both the game state integration and netcon features 
 offered by csgo into a single application.
+## *Short note to the accusing cheaters*
+All features interacting with CSGO used in this project are provided by Valve themselves. Unlike a 'cheat':
+- This does not inject any code into the game
+- Modify the game's code,
+- Read memory from the game
+
+Read on to see how this project works and more information on why it's not a cheat.
+
 
 ## Game State Integration
 Game state integration is a feature that allows you to get the current state of the game, player, and match.

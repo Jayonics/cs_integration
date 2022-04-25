@@ -1,19 +1,28 @@
 import * as http from "http";
-import * as fs from 'fs';
 import {Socket} from "net";
 import {parseGameState, parseGlobalEvent, parseMatchEvent} from "./netcon/parsers.mjs";
 import {GameState, GlobalEvent, MatchEvent} from "./netcon/types.mjs";
-import {Mutex, MutexInterface, Semaphore, SemaphoreInterface, withTimeout} from "async-mutex";
+import {Mutex} from "async-mutex";
+import {ColorMap, RadialCommandType, RadialMessage, RadioStatus} from "./modules/radioStatus.js"
+import { ChatConfiguration } from "./modules/chatConfiguration.js"
 
 let port = process.env.PORT || 3000;
 let host: string = process.env.HOST || '0.0.0.0';
+let username: string = process.env.USERNAME || 'Jayonics';
+let verbose: string = process.env.VERBOSE || 'false';
+// Converts the environment variable VERBOSE to a boolean (originally string).
+verbose = JSON.parse(verbose);
+
+new ChatConfiguration();
+
 
 const mutex = new Mutex();
 
-class Client {
+export class Client {
     socket: Socket;
     connectionOpen: boolean;
     cmdQueue: string[] = [];
+    buffer: any[] = [];
 
     constructor(
         private port: number,
@@ -51,112 +60,61 @@ class Client {
         });
     }
 
-
-}
-
-function ConvertDatatypeObjectToPrimitive(key: any, value: any) {
-    switch (key) {
-        case 'Boolean' :
-            return Boolean(value);
-            break;
-        case 'Number' :
-            return Number(value);
-            break;
-        case 'String' :
-            return String(value);
-            break;
-        case 'Null' :
-            return null;
-            break;
-        default:
-            console.error(`Unknown datatype: ${key}`);
-            return null;
+    sendAllChatMessage(delay?: number, verbose?: boolean, ...messages: string[]): void {
+        for (const message of messages) {
+            this.socket.write(`say ${message}\r\n`);
+        }
     }
-}
 
-function ChatCommandParser(player: string, message: string) {
-    // A "startsWith" check for the command prefix (can be extended with more prefixes).
-    let commandPrefix = new RegExp(/^\/|\$|!/, 'u');
-    if (message.match(commandPrefix)) {
-        message = message.slice(1); // Strip the command prefix from the message.
-        /**
-         * @constant
-         * @type {RegExp}
-         * @description A regex to capture the function name and optional parameter(s) from the chat message.
-         * The <Function> capture group may be anything that follows the JavaScript function syntax. I.E:
-         * - Permitted characters are: Letters, digits, underscores, and dollar signs.
-         * - The function name must begin with a letter.
-         * - The function name may not contain spaces.
-         * This CAN follow by optional whitespace, and HAS to be followed by an opening parenthesis. This is not captured.
-         * The <Arguments> capture group contains subgroups representing primitive data types.
-         * - <String> capture group: /(?<String>(?:["'`]).*(?:["'`]))/ JS syntax compatible string.
-         * - <Boolean> capture group: /(?<Boolean>true|false)/ JS syntax compatible boolean.
-         * - <Number> capture group: /(?<Number>-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/ JS syntax compatible number.
-         * - <Null> capture group: /(?<Null>null)/ JS syntax compatible null.
-         * - <Undefined> capture group: /(?<Undefined>undefined)/ JS syntax compatible undefined.
-         * - <Object> capture group: /(?<Object>\{.*\})/ JS syntax compatible object.
-         * - <Array> capture group: /(?<Array>\[.*\])/ JS syntax compatible array.
-         * - <Function> capture group: /(?<Function>[a-zA-Z_$][a-zA-Z_$0-9]*\(.*\))/ JS syntax compatible function.
-         * One data type is captured per message argument.
-         *
-         * Extra arguments MAY be provided in the message string, so an argument separator regex following
-         * the syntax described below can occur either:
-         * * Never:
-         * * - The message contains either 0 or 1 arguments.
-         * * - FLOW: The argument separator regex is not matched.
-         * * - FLOW: The closing parenthesis SHOULD FOLLOW the previous <Arguments> sub-group.
-         * * === 1: In which case another <Arguments> capture group is expected to follow the Separator.
-         * * - This implies the message has 2 arguments.
-         * * - FLOW: The argument separator regex is matched.
-         * * - FLOW: Another <Arguments> capture group SHOULD FOLLOW the argument separator.
-         * * - FLOW: The closing parenthesis SHOULD FOLLOW the previous <Arguments> sub-group.
-         * * > 1: For any number of arguments greater than 2.
-         * * - FLOW: The same flow as === 1 applies, with the exception that the closing parenthesis are NOT EXPECTED until the last argument.
-         * * - (Representation of recursive flow) [ <Arguments> -> Separator -> <Arguments> -> ... -> Closing Parenthesis ]
-         * The format of the seperator regex is:
-         * - May have any number of whitespace characters before it.
-         * - A single comma inbetween.
-         * - May have any number of whitespace characters after it.
-         * - /(\s*,\s*)/
-         *
-         */
-
-            // const ArgumentsRegex = /(?:\()(?<Arguments>\s*(?<String>(?:["'`]).*(?:["'`]))|(?<Boolean>true|false)|(?<Null>null)|(?<Number>-?\d+))\s*\)/u
-        let ArgumentReg = /(?<String>(?:["'`]).*(?:["'`]))|(?<Boolean>true|false)|(?<Null>null)|(?<Number>-?\d+)/u
-        let FuncAndArgs = message.match(/^(?<Command>[a-zA-Z_$][a-zA-Z\d_$]*)\s*\((?<Arguments>.*)\)/u).groups;
-        let Func = FuncAndArgs.Command;
-        let Args = FuncAndArgs.Arguments.split(/,/).map(
-            values => {
-                return values.match(ArgumentReg).groups
-            })
-        // Filter out the undefined elements from the objects.
-        Args = Args.map(Index => {
-            return Object.keys(Index).reduce((acc, key) => {
-                if (Index[key] !== undefined) {
-                    acc[key] = Index[key];
-                }
-                return acc;
-            }, {})
-        })
-        // Then replace the objects with their primitive types based on key name using the ConvertDatatypeObjectToPrimitive function.
-        Args = Args.map(Index => {
-            return Object.keys(Index).reduce((acc, key) => {
-                acc[key] = ConvertDatatypeObjectToPrimitive(key, Index[key]);
-                return acc;
-            }, {})
-        })
-
-
-        console.log(Args);
-        // let FuncArgData = message.match(new RegExp(FunctionRegex.source + ArgumentsRegex.source, 'ug'));
-        // const MessageHandlerRegex = /^(?<Function>[a-zA-Z_$][a-zA-Z\d_$]+)(?:\s*)\((?<Arguments>(?<String>(?:["'`]).*(?:["'`]))|(?<Boolean>true|false)|(?<Null>null)|(?<Number>-?\d+))(\s*,\s*)/mgu;
-    } else {
-        return;
+    sendTeamChatMessage(delay?: number, verbose?: boolean, ...messages: string[]): void {
+        for (const message of messages) {
+            this.socket.write(`say_team ${message}\r\n`);
+        }
     }
+
+    // An extension with the radial command types and functions
+    // Sends a radial message to the netcon
+    async sendRadialMessage(commandType: RadialCommandType, message: string, color?: ColorMap) {
+        // 1. Check to see if the buffer is full
+        // 1.1 If the buffer is full, check to see if the first command in the buffer has timed out
+        // 1.2 If the first command in the buffer has timed out, remove it from the buffer and continue
+        // 1.3 If the first command in the buffer has not timed out, throw an error
+        // 2. Add the new message to the buffer
+        // 3. Parse the message
+        // 4. Send the message to the netcon
+        if (this.buffer.length === RadioStatus.rateLimit.maxCommands) {
+            if (this.buffer[0].timeStamp.getTime() + RadioStatus.rateLimit.timeWindow * 1000 < new Date().getTime()) {
+                this.buffer.shift();
+            } else {
+                throw new Error("Radio buffer is full and no commands have timed out");
+            }
+        } else {
+            this.buffer.push({
+                radialMessage: {commandType, message},
+                timeStamp: new Date()
+            });
+            this.send(RadioStatus.radialCommandParser(commandType, message, color));
+            return (RadioStatus.radialCommandParser(commandType, message, color));
+        }
+
+    }
+
+    static radialCommandParser(commandType: RadialCommandType, message: string, color?: ColorMap): string {
+        // Start forming the string
+        let command = `playerchatwheel cw.${commandType}`;
+        if (color === undefined) {
+            color = ColorMap.white;
+        }
+
+        // Add the message and color
+        command += `"${color}${message}"`;
+        return command;
+    }
+
 }
 
 let gameState = GameState.Match;
-const netcon = new Client(2323, '10.66.11.1');
+export let netcon = new Client(2323, '10.66.11.1');
 netcon.addListener(async (message: string[]) => {
     switch (typeof message) {
         case 'string':
@@ -208,34 +166,36 @@ netcon.addListener(async (message: string[]) => {
                         break;
                     case GlobalEvent.Message:
                         const [player, msg] = (globalEvent.value as string[]);
-                        ChatCommandParser(player, msg);
-                        // if (msg.match(/\/saysomethingnice$/)) {
-                        //     // Some random compliments for whoever asked.
-                        //     const nicewords = [
-                        //         `${player} I hope you're having a good day!`,
-                        //         `you're doing great ${player}!`,
-                        //         `${player} looking good!`,
-                        //         `you could play with the pros ${player}.`,
-                        //     ]
-                        //     // Wait a second before sending the message.
-                        //     await new Promise(resolve => setTimeout(resolve, 1000));
-                        //     netcon.send(`say ${getRandomArrayEllement(nicewords)}`);
-                        //     console.log(`${getRandomArrayEllement(nicewords)}`);
-                        // } else if (msg.match(/\/saysomethingnice\(.*\)$/)) {
-                        //     // Some random compliments for whoever is mentioned within the parentheses.
-                        //     // Capture the player name within the parentheses.
-                        //     let mention = msg.match(/\/(?:saysomethingnice)\((?<argument>.*)\)/);
-                        //     const nicewords = [
-                        //         `${mention} I hope you're having a good day!`,
-                        //         `you're doing great ${mention}!`,
-                        //         `${mention} looking good!`,
-                        //         `you could play with the pros ${mention}.`,
-                        //     ]
-                        //     // Wait a second before sending the message.
-                        //     await new Promise(resolve => setTimeout(resolve, 1000));
-                        //     netcon.send(`say ${getRandomArrayEllement(nicewords)}`);
-                        //     console.log(`${getRandomArrayEllement(nicewords)}`);
-                        // }
+                        if (msg.match(/\/(.*)/)) {
+                            ChatConfiguration.ParseChatCommand(msg);
+                        }
+                        if (msg.match(/\/saysomethingnice$/)) {
+                            // Some random compliments for whoever asked.
+                            const nicewords = [
+                                `${player} I hope you're having a good day!`,
+                                `you're doing great ${player}!`,
+                                `${player} looking good!`,
+                                `you could play with the pros ${player}.`,
+                            ]
+                            // Wait a second before sending the message.
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            netcon.send(`say ${getRandomArrayEllement(nicewords)}`);
+                            console.log(`${getRandomArrayEllement(nicewords)}`);
+                        } else if (msg.match(/\/saysomethingnice\(.*\)$/)) {
+                            // Some random compliments for whoever is mentioned within the parentheses.
+                            // Capture the player name within the parentheses.
+                            let mention = msg.match(/\/(?:saysomethingnice)\((?<argument>.*)\)/);
+                            const nicewords = [
+                                `${mention} I hope you're having a good day!`,
+                                `you're doing great ${mention}!`,
+                                `${mention} looking good!`,
+                                `you could play with the pros ${mention}.`,
+                            ]
+                            // Wait a second before sending the message.
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            netcon.send(`say ${getRandomArrayEllement(nicewords)}`);
+                            console.log(`${getRandomArrayEllement(nicewords)}`);
+                        }
                         break;
                     default:
                         switch (gameState) {
@@ -249,17 +209,17 @@ netcon.addListener(async (message: string[]) => {
                                 switch (matchEvent.event) {
                                     case MatchEvent.PlayerConnected:
                                         // todo: Do something fun with this.
-                                        netcon.send(
-                                            `say Player connected: ${matchEvent.value}`
-                                        )
+                                        console.log(
+                                            `Player connected: ${matchEvent.value}`
+                                        );
                                         knownPlayers.push(matchEvent.value)
                                         console.log(knownPlayers);
                                         break;
                                     case MatchEvent.PlayerDisconnected:
                                         // todo: Do something fun with this.
-                                        netcon.send(
-                                            `say Player disconnected: ${matchEvent.value}`
-                                        )
+                                        console.log(
+                                            `Player disconnected: ${matchEvent.value}`
+                                        );
                                         break;
                                     case MatchEvent.DamageGiven:
                                         // TODO: Handle dealing with an undefined phase.
@@ -389,52 +349,55 @@ let server = http.createServer(function (req, res) {
 
                 // Only run functions if there is a previous post to compare to.
                 if (postDataArray.length > 1) {
-                    // if (post.player.state.health < postDataArray[1].player.state.health && post.player.state.health !== 0) {
-                    //     let fighting = true;
-                    //     let lastHealth = post.player.state.health;
-                    //     netcon.send(`say_team ${post.player.name} lost  -${(postDataArray[1].player.state.health - post.player.state.health)} health`);
-                    //     await new Promise(resolve => setTimeout(resolve, 1000));
-                    // }
-
-                    if (post.player.state.smoked == true && postDataArray[1].player.state.smoked == false) {
-                        netcon.send(`say_team ${post.player.name} ${fitNumberIn(post.player.state.smoked)}% smoked `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } else if (post.player.state.smoked > postDataArray[1].player.state.smoked) {
-                        netcon.send(`say_team ${post.player.name} ${fitNumberIn(post.player.state.smoked)}% smoked `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } else if (post.player.state.smoked == false && postDataArray[1].player.state.smoked == true) {
-                        netcon.send(`say_team ${post.player.name} not smoked anymore! `);
+                    if (post.player.state.health < postDataArray[1].player.state.health && post.player.state.health !== 0) {
+                        netcon.send(`takingfire`)
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
 
-                    if (post.player.state.flashed == true && postDataArray[1].player.state.flashed == false) {
-                        netcon.send(`say_team ${post.player.name} ${fitNumberIn(post.player.state.flashed)}% flashed `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } else if (post.player.state.flashed > postDataArray[1].player.state.flashed) {
-                        netcon.send(`say_team ${post.player.name} ${fitNumberIn(post.player.state.flashed)}% flashed `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } else if (post.player.state.flashed == false && postDataArray[1].player.state.flashed == true) {
-                        netcon.send(`say_team ${post.player.name} not blind anymore! `);
+                    if ( ChatConfiguration.SmokedStateMessages === true ) {
+                        if (post.player.state.smoked == true && postDataArray[1].player.state.smoked == false) {
+                            netcon.send(`say_team ${post.player.name} is smoked! `);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        } else if (post.player.state.smoked == false && postDataArray[1].player.state.smoked == true) {
+                            netcon.send(`say_team ${post.player.name} not smoked anymore! `);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+
+                    if ( ChatConfiguration.FlashStateMessages === true ) {
+                        if (post.player.state.flashed == true && postDataArray[1].player.state.flashed == false) {
+                            netcon.send(`say_team ${post.player.name} is flashed! `);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        } else if (post.player.state.flashed == false && postDataArray[1].player.state.flashed == true) {
+                            netcon.send(`say_team ${post.player.name} not blind anymore! `);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+
+                    if ( ChatConfiguration.BurningStateMessages === true ) {
+                        if (post.player.state.burning == true && postDataArray[1].player.state.burning == false) {
+                            netcon.send(`say_team ${post.player.name} is burning! `);
+                            netcon.send()
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        } else if (post.player.state.burning == false && postDataArray[1].player.state.burning == true) {
+                            netcon.send(`say_team ${post.player.name} not burning anymore! `);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+
+                    if ( ChatConfiguration.DeathTalk === true ) {
+                        if (post.player.match_stats.deaths > postDataArray[1].player.match_stats.deaths) {
+                            netcon.send(`say R.I.P `);
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+
+                    if ( post.player.state.money < postDataArray[1].player.state.money && post.player.state.money <= 2000 && post.round.phase !== "live") {
+                        netcon.send(`needrop`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
 
-                    if (post.player.state.burning == true && postDataArray[1].player.state.burning == false) {
-                        netcon.send(`say_team ${post.player.name} ${fitNumberIn(post.player.state.burning)}% burning `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } else if (post.player.state.burning > postDataArray[1].player.state.burning) {
-                        netcon.send(`say_team ${post.player.name} ${fitNumberIn(post.player.state.burning)}% burning `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } else if (post.player.state.burning == false && postDataArray[1].player.state.burning == true) {
-                        netcon.send(`say_team ${post.player.name} not burning anymore! `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-
-
-                    if (post.player.match_stats.deaths > postDataArray[1].player.match_stats.deaths) {
-                        netcon.send(`say R.I.P `);
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                    if (post.player.state.round_killhs > postDataArray[1].player.state.round_killhs) {
+                    if (post.player.state.round_killhs > postDataArray[1].player.state.round_killhs && ChatConfiguration.HeadshotKillTalk === true) {
                         let randomHeadshotMessages = [
                             `${post.player.name} is a headshot machine!`,
                             `Boom Headshot!`,
@@ -443,9 +406,10 @@ let server = http.createServer(function (req, res) {
                             `${getRandomArrayEllement(knownPlayers)} grab the shovel...`
                         ]
                         let randomHeadshotMessage = getRandomArrayEllement(randomHeadshotMessages);
+                        netcon.send(`enemydown`);
                         netcon.send(`say ${randomHeadshotMessage}`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
-                    } else if (post.player.state.round_kills > postDataArray[1].player.state.round_kills) {
+                    } else if (post.player.state.round_kills > postDataArray[1].player.state.round_kills && ChatConfiguration.StandardKillTalk === true) {
                         let randomKillMessages = [
                             `${post.player.name} is a kill machine!`,
                             `${getRandomArrayEllement(knownPlayers)} get the body bag!`,
@@ -455,7 +419,9 @@ let server = http.createServer(function (req, res) {
                             `Better luck next round.`
                         ]
                         let randomKillMessage = getRandomArrayEllement(randomKillMessages);
+                        netcon.send(`enemydown`);
                         netcon.send(`say ${randomKillMessage}`);
+
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
 
@@ -472,9 +438,16 @@ let server = http.createServer(function (req, res) {
                     }
                     // end of match
                     else if (post.map.phase == 'gameover' && postDataArray[1].map.phase == 'live') {
-                        netcon.send(`say Game over!`);
+                        netcon.send(`say Good Game!`);
                         // Clear the known players at the end of the match.
                         knownPlayers = [];
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+
+
+                    // If player is on winning round team and alive, send a cheer message.
+                    if (post.round.phase === "over" && post.round.win_team === post.player.team && post.player.state.health > 0) {
+                        netcon.send(`cheer`);
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 }
@@ -490,7 +463,7 @@ let server = http.createServer(function (req, res) {
 });
 
 netcon.connect()
-server.listen(port, '0.0.0.0');
+server.listen(3000, '0.0.0.0');
 console.log('Server running at http://' + host + ':' + port + '/');
 
 // do {
